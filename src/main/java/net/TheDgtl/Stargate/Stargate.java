@@ -167,8 +167,6 @@ public class Stargate extends JavaPlugin {
 			permissions = null;
 		}
 		if (iConomyHandler.setupeConomy(pm)) {
-			if (iConomyHandler.register != null)
-				log.info("[Stargate] Register v" + iConomyHandler.register.getDescription().getVersion() + " found");
 			if (iConomyHandler.economy != null)
 				log.info("[Stargate] Vault v" + iConomyHandler.vault.getDescription().getVersion() + " found");
         }
@@ -1219,9 +1217,6 @@ public class Stargate extends JavaPlugin {
 	private class sListener implements Listener {
 		@EventHandler
 		public void onPluginEnable(PluginEnableEvent event) {
-			if (iConomyHandler.setupRegister(event.getPlugin())) {
-				log.info("[Stargate] Register v" + iConomyHandler.register.getDescription().getVersion() + " found");
-			}
 			if (iConomyHandler.setupVault(event.getPlugin())) {
 				log.info("[Stargate] Vault v" + iConomyHandler.vault.getDescription().getVersion() + " found");
 			}
@@ -1329,17 +1324,14 @@ public class Stargate extends JavaPlugin {
 				lang.reload();
 				
 				// Load iConomy support if enabled/clear if disabled
-				if (iConomyHandler.useiConomy && iConomyHandler.register == null && iConomyHandler.economy == null) {
+				if (iConomyHandler.useiConomy && iConomyHandler.economy == null) {
 					if (iConomyHandler.setupeConomy(pm)) {
-						if (iConomyHandler.register != null)
-							log.info("[Stargate] Register v" + iConomyHandler.register.getDescription().getVersion() + " found");
 						if (iConomyHandler.economy != null)
 							log.info("[Stargate] Vault v" + iConomyHandler.vault.getDescription().getVersion() + " found");
 			        }
 				}
 				if (!iConomyHandler.useiConomy) {
 					iConomyHandler.vault = null;
-					iConomyHandler.register = null;
 					iConomyHandler.economy = null;
 				}
 				
