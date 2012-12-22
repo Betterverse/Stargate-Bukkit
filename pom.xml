@@ -23,7 +23,7 @@
     </repositories>
   <build>
     <sourceDirectory>src</sourceDirectory>
-    <finalName>${artifactId}</finalName>
+    <finalName>${project.artifactId}</finalName>
     <defaultGoal>clean package install</defaultGoal>
     <plugins>
       <plugin>
@@ -56,6 +56,6 @@
   	</dependency>
   	
   </dependencies>
-  <artifactId>Stargate-Bukkit</artifactId>
+  <artifactId>Stargate</artifactId>
   <name>Stargate</name>
 </project>
