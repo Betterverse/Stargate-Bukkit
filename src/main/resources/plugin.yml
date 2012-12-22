@@ -11,7 +11,7 @@ commands:
 permissions:
   stargate.use:
     description: Allow use of all gates linking to any world in any network
-    default: true
+    default: false
   stargate.create:
     description: Allow creating gates on any network
     default: op
