@@ -3,9 +3,6 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>net.TheDgtl</groupId>
   	<version>0.7.9.1</version>
-  	<artifactId>Stargate</artifactId>
-  	
-  	<name>Stargate</name>
     <repositories>
   		<repository>
 			<id>everything</id>
