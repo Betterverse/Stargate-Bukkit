@@ -215,6 +215,18 @@ Bukkit Issue: Stargate will randomly NPE when drawing a sign. Long-standing Bukk
 =============
   Changes
 =============
+[Version 0.7.9.7]
+ - Do the Bungee check after the gate layout check.
+[Version 0.7.9.6]
+ - Actually remove the player from the BungeeQueue when they connect. Oops :)
+ - Implement stargate.server nodes
+ - Improve the use of negation. You can now negate networks/worlds/servers while using stargate.use permissions.
+[Version 0.7.9.5]
+ - Fixed an issue with portal material not showing up (Oh, that code WAS useful)
+[Version 0.7.9.4]
+ - Fixed an issue where water gates broke, oops
+[Version 0.7.9.3]
+ - Update BungeeCord integration for b152+
 [Version 0.7.9.2]
  - Remove my custom sign class. Stupid Bukkit team.
  - Will work with CB 1.4.5 builds, but now will break randomly due to Bukkit screwup

@@ -850,14 +850,14 @@ public class Portal {
 		} else {
 			// Check if network exists in our network list
 			if (!lookupNamesNet.containsKey(getNetwork().toLowerCase())) {
-				Stargate.debug("register", "Network not in lookupNamesNet, adding");
+				Stargate.debug("register", "Network " + getNetwork() + " not in lookupNamesNet, adding");
 				lookupNamesNet.put(getNetwork().toLowerCase(), new HashMap<String, Portal>());
 			}
 			lookupNamesNet.get(getNetwork().toLowerCase()).put(getName().toLowerCase(), this);
 			
 			// Check if this network exists
 			if (!allPortalsNet.containsKey(getNetwork().toLowerCase())) {
-				Stargate.debug("register", "Network not in allPortalsNet, adding");
+				Stargate.debug("register", "Network " + getNetwork() + " not in allPortalsNet, adding");
 				allPortalsNet.put(getNetwork().toLowerCase(), new ArrayList<String>());
 			}
 			allPortalsNet.get(getNetwork().toLowerCase()).add(getName().toLowerCase());
@@ -922,20 +922,6 @@ public class Portal {
 		if (show && !Stargate.canOption(player,  "show")) show = false;
 		if (noNetwork && !Stargate.canOption(player, "nonetwork")) noNetwork = false;
 		if (random && !Stargate.canOption(player, "random")) random = false;
-		
-		// If the player is trying to create a Bungee gate without permissions, drop out here
-		if (bungee) {
-			if (!Stargate.enableBungee) {
-				Stargate.sendMessage(player, Stargate.getString("bungeeDisabled"));
-				return null;
-			} else if (!Stargate.hasPerm(player, "stargate.admin.bungee")) {
-				Stargate.sendMessage(player, Stargate.getString("bungeeDeny"));
-				return null;
-			} else if (destName.isEmpty() || network.isEmpty()) {
-				Stargate.sendMessage(player, Stargate.getString("bungeeEmpty"));
-				return null;
-			}
-		}
 		
 		// Can not create a non-fixed always-on gate.
 		if (alwaysOn && destName.length() == 0) {
@@ -1016,6 +1002,21 @@ public class Portal {
 		if ((gate == null) || (buttonVector == null)) {
 			Stargate.debug("createPortal", "Could not find matching gate layout");
 			return null;
+		}
+		
+		// If the player is trying to create a Bungee gate without permissions, drop out here
+		// Do this after the gate layout check, in the least
+		if (bungee) {
+			if (!Stargate.enableBungee) {
+				Stargate.sendMessage(player, Stargate.getString("bungeeDisabled"));
+				return null;
+			} else if (!Stargate.hasPerm(player, "stargate.admin.bungee")) {
+				Stargate.sendMessage(player, Stargate.getString("bungeeDeny"));
+				return null;
+			} else if (destName.isEmpty() || network.isEmpty()) {
+				Stargate.sendMessage(player, Stargate.getString("bungeeEmpty"));
+				return null;
+			}
 		}
 		
 		// Debug
@@ -1204,7 +1205,7 @@ public class Portal {
 	}
 	
 	public static Portal getBungeeGate(String name) {
-		return bungeePortals.get(name);
+		return bungeePortals.get(name.toLowerCase());
 	}
 
 	public static void saveAllGates(World world) {

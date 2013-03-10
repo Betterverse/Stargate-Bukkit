@@ -1,9 +1,13 @@
 package net.TheDgtl.Stargate;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
@@ -40,6 +44,7 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.server.PluginDisableEvent;
@@ -116,6 +121,9 @@ public class Stargate extends JavaPlugin {
 	// Used for populating gate open/closed material.
 	public static Queue<BloxPopulator> blockPopulatorQueue = new LinkedList<BloxPopulator>();
 	
+	// HashMap of player names for Bungee support
+	public static Map<String, String> bungeeQueue = new HashMap<String, String>();
+	
 	public void onDisable() {
 		Portal.closeAllGates();
 		Portal.clearGates();
@@ -150,8 +158,8 @@ public class Stargate extends JavaPlugin {
 		
 		// Enable the required channels for Bungee support
 		if (enableBungee) {
-			Bukkit.getMessenger().registerOutgoingPluginChannel(this, "SGBungee");
-			Bukkit.getMessenger().registerIncomingPluginChannel(this, "SGBungee", new pmListener());
+			Bukkit.getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
+			Bukkit.getMessenger().registerIncomingPluginChannel(this, "BungeeCord", new pmListener());
 		}
 		
 		// It is important to load languages here, as they are used during reloadGates()
@@ -408,10 +416,8 @@ public class Stargate extends JavaPlugin {
 	 * Check whether player can teleport to dest world
 	 */
 	public static boolean canAccessWorld(Player player, String world) {
-		// Can use all Stargate player features
-		if (hasPerm(player, "stargate.use")) return true;
-		// Can access all worlds
-		if (hasPerm(player, "stargate.world")) {
+		// Can use all Stargate player features or access all worlds
+		if (hasPerm(player, "stargate.use") || hasPerm(player, "stargate.world")) {
 			// Do a deep check to see if the player lacks this specific world node
 			if (!hasPermDeep(player, "stargate.world." + world)) return false;
 			return true;
@@ -425,10 +431,8 @@ public class Stargate extends JavaPlugin {
 	 * Check whether player can use network
 	 */
 	public static boolean canAccessNetwork(Player player, String network) {
-		// Can use all Stargate player features
-		if (hasPerm(player, "stargate.use")) return true;
-		// Can access all networks
-		if (hasPerm(player, "stargate.network")) {
+		// Can user all Stargate player features, or access all networks
+		if (hasPerm(player, "stargate.use") || hasPerm(player, "stargate.network")) {
 			// Do a deep check to see if the player lacks this specific network node
 			if (!hasPermDeep(player, "stargate.network." + network)) return false;
 			return true;
@@ -436,9 +440,24 @@ public class Stargate extends JavaPlugin {
 		// Can access this network
 		if (hasPerm(player, "stargate.network." + network)) return true;
 		// Is able to create personal gates (Assumption is made they can also access them)
-		String playerName = player.getName();
+		String playerName = player.getName().toLowerCase();
 		if (playerName.length() > 11) playerName = playerName.substring(0, 11);
 		if (network.equals(playerName) && hasPerm(player, "stargate.create.personal")) return true;
+		return false;
+	}
+	
+	/*
+	 * Check whether the player can access this server
+	 */
+	public static boolean canAccessServer(Player player, String server) {
+		// Can user all Stargate player features, or access all servers
+		if (hasPerm(player, "stargate.use") || hasPerm(player, "stargate.servers")) {
+			// Do a deep check to see if the player lacks this specific server node
+			if (!hasPermDeep(player, "stargate.server." + server)) return false;
+			return true;
+		}
+		// Can access this server
+		if (hasPerm(player, "stargate.server." + server)) return true;
 		return false;
 	}
 	
@@ -721,6 +740,21 @@ public class Stargate extends JavaPlugin {
 	}
 	
 	private class pListener implements Listener {
+		@EventHandler
+		public void onPlayerJoin(PlayerJoinEvent event) {
+			if (!enableBungee) return;
+			
+			Player player = event.getPlayer();
+			String destination = bungeeQueue.remove(player.getName().toLowerCase());
+			if (destination == null) return;
+			
+			Portal portal = Portal.getBungeeGate(destination);
+			if (portal == null) {
+				Stargate.debug("PlayerJoin", "Error fetching destination portal: " + destination);
+				return;
+			}
+			portal.teleport(player, portal, null);
+		}
 
 		@EventHandler
 		public void onPlayerPortal(PlayerPortalEvent event) {
@@ -777,15 +811,21 @@ public class Stargate extends JavaPlugin {
 			if (!portal.isBungee() && destination == null) return;
 			
 			boolean deny = false;
-			// Check if player has access to this network
-			// For Bungee gates this will be the target server name
-			if (!canAccessNetwork(player, portal.getNetwork())) {
-				deny = true;
-			}
-			
-			// Check if player has access to destination world
-			if (!portal.isBungee() && !canAccessWorld(player, destination.getWorld().getName())) {
-				deny = true;
+			// Check if player has access to this server for Bungee gates
+			if (portal.isBungee()) {
+				if (!canAccessServer(player, portal.getNetwork())) {
+					deny = true;
+				}
+			} else {
+				// Check if player has access to this network
+				if (!canAccessNetwork(player, portal.getNetwork())) {
+					deny = true;
+				}
+				
+				// Check if player has access to destination world
+				if (!canAccessWorld(player, destination.getWorld().getName())) {
+					deny = true;
+				}
 			}
 			
 			if (!canAccessPortal(player, portal, deny)) {
@@ -818,19 +858,51 @@ public class Stargate extends JavaPlugin {
 			}
 			
 			Stargate.sendMessage(player, Stargate.getString("teleportMsg"), false);
+			
+			// BungeeCord Support
 			if (portal.isBungee()) {
-				
 				if (!enableBungee) {
 					player.sendMessage(Stargate.getString("bungeeDisabled"));
 					portal.close(false);
 					return;
 				}
 				
+				// Teleport the player back to this gate, for sanity's sake
 				portal.teleport(player, portal, event);
 				
-				// Teleport player via BungeeCord
-				String pMsg = portal.getNetwork() + "@#@" + portal.getDestinationName();
-				player.sendPluginMessage(stargate, "SGBungee", pMsg.getBytes());
+				// Send the SGBungee packet first, it will be queued by BC if required
+				try {
+					// Build the message, format is <player>#@#<destination>
+					String msg = event.getPlayer().getName() + "#@#" + portal.getDestinationName();
+					// Build the message data, sent over the SGBungee bungeecord channel
+					ByteArrayOutputStream bao = new ByteArrayOutputStream();
+					DataOutputStream msgData = new DataOutputStream(bao);
+					msgData.writeUTF("Forward");
+					msgData.writeUTF(portal.getNetwork());	// Server
+					msgData.writeUTF("SGBungee");			// Channel
+					msgData.writeShort(msg.length()); 	// Data Length
+					msgData.writeBytes(msg); 			// Data
+					player.sendPluginMessage(stargate, "BungeeCord", bao.toByteArray());
+				} catch (IOException ex) {
+					Stargate.log.severe("[Stargate] Error sending BungeeCord teleport packet");
+					ex.printStackTrace();
+					return;
+				}
+				
+				// Connect player to new server
+				try {
+					ByteArrayOutputStream bao = new ByteArrayOutputStream();
+					DataOutputStream msgData = new DataOutputStream(bao);
+					msgData.writeUTF("Connect");
+					msgData.writeUTF(portal.getNetwork());
+					
+					player.sendPluginMessage(stargate, "BungeeCord", bao.toByteArray());
+					bao.reset();
+				} catch(IOException ex) {
+					Stargate.log.severe("[Stargate] Error sending BungeeCord connect packet");
+					ex.printStackTrace();
+					return;
+				}
 				
 				// Close portal if required (Should never be)
 				portal.close(false);
@@ -1047,10 +1119,11 @@ public class Stargate extends JavaPlugin {
 
 		@EventHandler
 		public void onBlockPhysics(BlockPhysicsEvent event) {
+			// Only check for gates if it's a portal block
 			Block block = event.getBlock();
+			if (block.getTypeId() != 90) return;
+			
 			Portal portal = Portal.getByEntrance(block);
-			if (portal != null) event.setCancelled(true);
-			portal = Portal.getByControl(block);
 			if (portal != null) event.setCancelled(true);
 		}
 
@@ -1338,11 +1411,11 @@ public class Stargate extends JavaPlugin {
 				// Enable the required channels for Bungee support
 				if (oldEnableBungee != enableBungee) {
 					if (enableBungee) {
-						Bukkit.getMessenger().registerOutgoingPluginChannel(this, "SGBungee");
-						Bukkit.getMessenger().registerIncomingPluginChannel(this, "SGBungee", new pmListener());
+						Bukkit.getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
+						Bukkit.getMessenger().registerIncomingPluginChannel(this, "BungeeCord", new pmListener());
 					} else {
-						Bukkit.getMessenger().unregisterIncomingPluginChannel(this, "SGBungee");
-						Bukkit.getMessenger().unregisterOutgoingPluginChannel(this, "SGBungee");
+						Bukkit.getMessenger().unregisterIncomingPluginChannel(this, "BungeeCord");
+						Bukkit.getMessenger().unregisterOutgoingPluginChannel(this, "BungeeCord");
 					}
 				}
 				
