@@ -3,10 +3,20 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>net.TheDgtl</groupId>
   	<version>0.7.9.1</version>
+	<distributionManagement>
+		<repository>
+			<id>betterverse-deployment</id>
+			<url>http://dev.betterver.se/nexus/content/repositories/releases/</url>
+		</repository>
+		<snapshotRepository>
+			<id>betterverse-deployment</id>
+			<url>http://dev.betterver.se/nexus/content/repositories/snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
     <repositories>
   		<repository>
-			<id>everything</id>
-			<url>http://dev.betterver.se/jenkins/plugin/repository/everything/</url>
+			<id>betterverse-deployment</id>
+			<url>http://dev.betterver.se/nexus/content/repositories/snapshots/</url>
 		</repository>
 		<repository>
 			<id>bukkit-repo</id>
