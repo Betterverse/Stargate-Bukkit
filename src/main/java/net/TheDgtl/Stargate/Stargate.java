@@ -31,6 +31,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Vehicle;
+import org.bukkit.event.Event;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -57,9 +58,6 @@ import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
-// Permissions
-import com.nijikokun.bukkit.Permissions.Permissions;
-
 /**
  * Stargate - A portal plugin for Bukkit
  * Copyright (C) 2011 Shaun (sturmeh)
@@ -82,9 +80,6 @@ import com.nijikokun.bukkit.Permissions.Permissions;
 
 @SuppressWarnings("unused")
 public class Stargate extends JavaPlugin {
-	// Permissions
-	private static Permissions permissions = null;
-	
 	public static Logger log;
 	private FileConfiguration newConfig;
 	private PluginManager pm;
@@ -168,12 +163,7 @@ public class Stargate extends JavaPlugin {
 		this.migrate();
 		this.reloadGates();
 		
-		// Check to see if iConomy/Permissions is loaded yet.
-		permissions = (Permissions)checkPlugin("Permissions");
-		if (permissions != null && (permissions.getDescription().getVersion().equals("2.7.2") ||  permissions.getDescription().getVersion().equals("2.7.7"))) {
-			log.info("[Stargate] Permissions is 2.7.2/2.7.7, most likely a bridge, disabling.");
-			permissions = null;
-		}
+		// Check to see if iConomy is loaded yet.
 		if (iConomyHandler.setupeConomy(pm)) {
 			if (iConomyHandler.economy != null)
 				log.info("[Stargate] Vault v" + iConomyHandler.vault.getDescription().getVersion() + " found");
@@ -378,15 +368,9 @@ public class Stargate extends JavaPlugin {
 	 * Check whether the player has the given permissions.
 	 */
 	public static boolean hasPerm(Player player, String perm) {
-		if (permissions != null) {
-			if (permDebug)
-				Stargate.debug("hasPerm::Permissions(" + player.getName() + ")", perm + " => " + permissions.getHandler().has(player, perm));
-			return permissions.getHandler().has(player, perm);
-		} else {
-			if (permDebug)
-				Stargate.debug("hasPerm::SuperPerm(" + player.getName() + ")", perm + " => " + player.hasPermission(perm));
-			return player.hasPermission(perm);
-		}
+		if (permDebug)
+			Stargate.debug("hasPerm::SuperPerm(" + player.getName() + ")", perm + " => " + player.hasPermission(perm));
+		return player.hasPermission(perm);
 	}
 	
 	/*
@@ -396,20 +380,14 @@ public class Stargate extends JavaPlugin {
 	 * Or the value of the node if it is
 	 */
 	public static boolean hasPermDeep(Player player, String perm) {
-		if (permissions != null) {
+		if (!player.isPermissionSet(perm)) {
 			if (permDebug)
-				Stargate.debug("hasPermDeep::Permissions", perm + " => " + permissions.getHandler().has(player, perm));
-			return permissions.getHandler().has(player,  perm);
-		} else {
-			if (!player.isPermissionSet(perm)) {
-				if (permDebug)
-					Stargate.debug("hasPermDeep::SuperPerm", perm + " => true");
-				return true;
-			}
-			if (permDebug)
-				Stargate.debug("hasPermDeep::SuperPerms", perm + " => " + player.hasPermission(perm));
-			return player.hasPermission(perm);
+				Stargate.debug("hasPermDeep::SuperPerm", perm + " => true");
+			return true;
 		}
+		if (permDebug)
+			Stargate.debug("hasPermDeep::SuperPerms", perm + " => " + player.hasPermission(perm));
+		return player.hasPermission(perm);
 	}
 	
 	/*
@@ -440,7 +418,7 @@ public class Stargate extends JavaPlugin {
 		// Can access this network
 		if (hasPerm(player, "stargate.network." + network)) return true;
 		// Is able to create personal gates (Assumption is made they can also access them)
-		String playerName = player.getName().toLowerCase();
+		String playerName = player.getName();
 		if (playerName.length() > 11) playerName = playerName.substring(0, 11);
 		if (network.equals(playerName) && hasPerm(player, "stargate.create.personal")) return true;
 		return false;
@@ -1119,14 +1097,18 @@ public class Stargate extends JavaPlugin {
 
 		@EventHandler
 		public void onBlockPhysics(BlockPhysicsEvent event) {
-			// Only check for gates if it's a portal block
 			Block block = event.getBlock();
-			if (block.getTypeId() != 90) return;
+			Portal portal = null;
 			
-			Portal portal = Portal.getByEntrance(block);
+			// Handle keeping portal material and buttons around
+			if (block.getTypeId() == 90) {
+				portal = Portal.getByEntrance(block);
+			} else if (block.getTypeId() == 77) {
+				portal = Portal.getByControl(block);
+			}
 			if (portal != null) event.setCancelled(true);
 		}
-
+		
 		@EventHandler
 		public void onBlockFromTo(BlockFromToEvent event) {
 			Portal portal = Portal.getByEntrance(event.getBlock());
@@ -1293,26 +1275,12 @@ public class Stargate extends JavaPlugin {
 			if (iConomyHandler.setupVault(event.getPlugin())) {
 				log.info("[Stargate] Vault v" + iConomyHandler.vault.getDescription().getVersion() + " found");
 			}
-			if (permissions == null) {
-				PluginDescriptionFile desc = event.getPlugin().getDescription();
-				if (desc.getName().equalsIgnoreCase("Permissions")) {
-					if (desc.getVersion().equals("2.7.2") || desc.getVersion().equals("2.7.7")) {
-						log.info("[Stargate] Permissions is 2.7.2/2.7.7, most likely a bridge, disabling.");
-						return;
-					}
-					permissions = (Permissions)checkPlugin(event.getPlugin());
-				}
-			}
 		}
 		
 		@EventHandler
 		public void onPluginDisable(PluginDisableEvent event) {
 			if (iConomyHandler.checkLost(event.getPlugin())) {
 				log.info("[Stargate] Register/Vault plugin lost.");
-			}
-			if (event.getPlugin() == permissions) {
-				log.info("[Stargate] Permissions plugin lost.");
-				permissions = null;
 			}
 		}
 	}
